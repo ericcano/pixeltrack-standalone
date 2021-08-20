@@ -17,23 +17,26 @@
 SiPixelROCsStatusAndMappingWrapper::SiPixelROCsStatusAndMappingWrapper(SiPixelROCsStatusAndMapping const& cablingMap,
                                                                std::vector<unsigned char> modToUnp)
     : modToUnpDefault(modToUnp.size()), hasQuality_(true) {
-  cudaCheck(cudaMallocHost(&cablingMapHost, sizeof(SiPixelROCsStatusAndMapping)));
-  std::memcpy(cablingMapHost, &cablingMap, sizeof(SiPixelROCsStatusAndMapping));
+  // TODO: check if cudaStreamDefault is appropriate
+  cablingMapHostBuffer = cms::cuda::make_host_unique<std::byte[]>(
+          SiPixelROCsStatusAndMapping::computeDataSize(pixelgpudetails::MAX_SIZE), cudaStreamDefault);
+  std::memcpy(cablingMapHostBuffer.get(), cablingMap.baseAddress(), 
+          SiPixelROCsStatusAndMapping::computeDataSize(pixelgpudetails::MAX_SIZE));
 
   std::copy(modToUnp.begin(), modToUnp.end(), modToUnpDefault.begin());
 }
 
-SiPixelROCsStatusAndMappingWrapper::~SiPixelROCsStatusAndMappingWrapper() { cudaCheck(cudaFreeHost(cablingMapHost)); }
-
-const SiPixelROCsStatusAndMapping* SiPixelROCsStatusAndMappingWrapper::getGPUProductAsync(cudaStream_t cudaStream) const {
-  const auto& data = gpuData_.dataForCurrentDeviceAsync(cudaStream, [this](GPUData& data, cudaStream_t stream) {
-    // allocate
-    cudaCheck(cudaMalloc(&data.cablingMapDevice, sizeof(SiPixelROCsStatusAndMapping)));
-
-    // transfer
-    cudaCheck(cudaMemcpyAsync(
-        data.cablingMapDevice, this->cablingMapHost, sizeof(SiPixelROCsStatusAndMapping), cudaMemcpyDefault, stream));
-  });
+const SiPixelROCsStatusAndMapping SiPixelROCsStatusAndMappingWrapper::getGPUProductAsync(cudaStream_t cudaStream) const {
+  const auto& data = gpuData_.dataForCurrentDeviceAsync(cudaStream, 
+          [this](GPUData& data, cudaStream_t stream) {
+            // allocate
+            data.allocate(pixelgpudetails::MAX_SIZE, stream);
+            // transfer
+            cudaCheck(cudaMemcpyAsync(
+                data.cablingMapBuffer.get(), this->cablingMapHostBuffer.get(),
+                    SiPixelROCsStatusAndMapping::computeDataSize(pixelgpudetails::MAX_SIZE), cudaMemcpyDefault, stream));
+          }
+  );
   return data.cablingMapDevice;
 }
 
@@ -49,7 +52,5 @@ const unsigned char* SiPixelROCsStatusAndMappingWrapper::getModToUnpAllAsync(cud
       });
   return data.modToUnpDefault;
 }
-
-SiPixelROCsStatusAndMappingWrapper::GPUData::~GPUData() { cudaCheck(cudaFree(cablingMapDevice)); }
 
 SiPixelROCsStatusAndMappingWrapper::ModulesToUnpack::~ModulesToUnpack() { cudaCheck(cudaFree(modToUnpDefault)); }

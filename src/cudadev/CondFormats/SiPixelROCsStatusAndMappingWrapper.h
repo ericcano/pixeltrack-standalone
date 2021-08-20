@@ -3,6 +3,7 @@
 
 #include "CUDACore/ESProduct.h"
 #include "CUDACore/HostAllocator.h"
+#include "CUDACore/host_unique_ptr.h"
 #include "CUDACore/device_unique_ptr.h"
 #include "CondFormats/SiPixelROCsStatusAndMapping.h"
 
@@ -14,12 +15,11 @@ class SiPixelROCsStatusAndMappingWrapper {
 public:
   explicit SiPixelROCsStatusAndMappingWrapper(SiPixelROCsStatusAndMapping const &cablingMap,
                                           std::vector<unsigned char> modToUnp);
-  ~SiPixelROCsStatusAndMappingWrapper();
 
   bool hasQuality() const { return hasQuality_; }
 
   // returns pointer to GPU memory
-  const SiPixelROCsStatusAndMapping *getGPUProductAsync(cudaStream_t cudaStream) const;
+  const SiPixelROCsStatusAndMapping getGPUProductAsync(cudaStream_t cudaStream) const;
 
   // returns pointer to GPU memory
   const unsigned char *getModToUnpAllAsync(cudaStream_t cudaStream) const;
@@ -28,11 +28,16 @@ private:
   std::vector<unsigned char, cms::cuda::HostAllocator<unsigned char>> modToUnpDefault;
   bool hasQuality_;
 
-  SiPixelROCsStatusAndMapping *cablingMapHost = nullptr;  // pointer to struct in CPU
+  cms::cuda::host::unique_ptr<std::byte[]> cablingMapHostBuffer;  // host pined memory for cabling map.
 
   struct GPUData {
-    ~GPUData();
-    SiPixelROCsStatusAndMapping *cablingMapDevice = nullptr;  // pointer to struct in GPU
+    void allocate(size_t size, cudaStream_t stream) {
+      cablingMapBuffer = cms::cuda::make_device_unique<std::byte[]>(
+              SiPixelROCsStatusAndMapping::computeDataSize(size), stream);
+      new(&cablingMapDevice) SiPixelROCsStatusAndMapping(cablingMapBuffer.get(), size);
+    }
+    cms::cuda::device::unique_ptr<std::byte[]> cablingMapBuffer;
+    SiPixelROCsStatusAndMapping cablingMapDevice = SiPixelROCsStatusAndMapping(nullptr, 0); // map struct in GPU
   };
   cms::cuda::ESProduct<GPUData> gpuData_;
 
