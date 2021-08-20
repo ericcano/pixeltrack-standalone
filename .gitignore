@@ -24,3 +24,5 @@
 /kokkostest
 /serial
 /sycltest
+# Ide files
+/nbproject/
