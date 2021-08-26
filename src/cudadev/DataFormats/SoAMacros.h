@@ -480,6 +480,23 @@ struct EigenConstMapMaker {
 #define _DO_RANGECHECK false
 #endif
 
+/**
+ * Helper/friend class allowing SoA introspection.
+ */
+template <class C>
+struct SoAIntrospector {
+  friend C;
+  SOA_HOST_DEVICE_INLINE size_t size() const { return parent_.nElements_; }
+  SOA_HOST_DEVICE_INLINE size_t byteSize() const { return parent_.byteSize_; }
+  SOA_HOST_DEVICE_INLINE size_t byteAlignment() const { return parent_.byteAlignment_; }
+  SOA_HOST_DEVICE_INLINE std::byte* baseAddress() const { return parent_.mem_; }
+  SOA_HOST_DEVICE_INLINE C cloneToNewAddress(std::byte* addr) { return C(addr, parent_.nElements_, parent_.byteAlignment_ ); }
+  
+private:
+  SoAIntrospector(const C& parent): parent_(parent) {}
+  const C& parent_;
+};
+
 /*
  * A macro defining a SoA (structure of variable sized arrays variant).
  */
@@ -512,17 +529,17 @@ struct CLASS {                                                                  
     return ret;                                                                                                                     \
   }                                                                                                                                 \
                                                                                                                                     \
-  SOA_HOST_DEVICE_INLINE size_t nElements() const { return nElements_; }                                                            \
-  SOA_HOST_DEVICE_INLINE size_t byteAlignment() const { return byteAlignment_; }                                                    \
-  SOA_HOST_DEVICE_INLINE std::byte* baseAddress() const { return mem_; }                                                            \
+  friend SoAIntrospector<CLASS>;                                                                                                    \
+  SOA_HOST_DEVICE_INLINE const SoAIntrospector<CLASS> soaMetadata() const { return  SoAIntrospector<CLASS>(*this); }                \
                                                                                                                                     \
-  /* Constructor relying on user provided storage */                                                                                \
+/* Constructor relying on user provided storage */                                                                                  \
   SOA_HOST_ONLY CLASS(std::byte* mem, size_t nElements, size_t byteAlignment = defaultAlignment):                                   \
       mem_(mem), nElements_(nElements), byteAlignment_(byteAlignment) {                                                             \
     auto curMem = mem_;                                                                                                             \
     _ITERATE_ON_ALL(_ASSIGN_SOA_COLUMN_OR_SCALAR, ~, __VA_ARGS__)                                                                   \
     /* Sanity check: we should have reached the computed size, only on host code */                                                 \
-    if(mem_ + computeDataSize(nElements_, byteAlignment_) != curMem)                                                                \
+    byteSize_ = computeDataSize(nElements_, byteAlignment_);                                                                        \
+    if(mem_ + byteSize_ != curMem)                                                                                                  \
       throw std::out_of_range("In " #CLASS "::" #CLASS ": unexpected end pointer.");                                                \
   }                                                                                                                                 \
                                                                                                                                     \
@@ -601,6 +618,7 @@ private:                                                                        
   /* data members */                                                                                                                \
   std::byte* mem_;                                                                                                                  \
   size_t nElements_;                                                                                                                \
+  size_t byteSize_;                                                                                                                 \
   size_t byteAlignment_;                                                                                                            \
   _ITERATE_ON_ALL(_DECLARE_SOA_DATA_MEMBER, ~, __VA_ARGS__)                                                                         \
 }

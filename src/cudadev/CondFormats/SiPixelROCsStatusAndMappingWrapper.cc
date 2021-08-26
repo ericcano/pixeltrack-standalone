@@ -20,7 +20,7 @@ SiPixelROCsStatusAndMappingWrapper::SiPixelROCsStatusAndMappingWrapper(SiPixelRO
   // TODO: check if cudaStreamDefault is appropriate
   cablingMapHostBuffer = cms::cuda::make_host_unique<std::byte[]>(
           SiPixelROCsStatusAndMapping::computeDataSize(pixelgpudetails::MAX_SIZE), cudaStreamDefault);
-  std::memcpy(cablingMapHostBuffer.get(), cablingMap.baseAddress(), 
+  std::memcpy(cablingMapHostBuffer.get(), cablingMap.soaMetadata().baseAddress(), 
           SiPixelROCsStatusAndMapping::computeDataSize(pixelgpudetails::MAX_SIZE));
 
   std::copy(modToUnp.begin(), modToUnp.end(), modToUnpDefault.begin());
