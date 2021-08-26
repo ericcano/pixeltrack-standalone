@@ -32,11 +32,11 @@ private:
 
   struct GPUData {
     void allocate(size_t size, cudaStream_t stream) {
-      cablingMapBuffer = cms::cuda::make_device_unique<std::byte[]>(
+      cablingMapDeviceBuffer = cms::cuda::make_device_unique<std::byte[]>(
               SiPixelROCsStatusAndMapping::computeDataSize(size), stream);
-      new(&cablingMapDevice) SiPixelROCsStatusAndMapping(cablingMapBuffer.get(), size);
+      new(&cablingMapDevice) SiPixelROCsStatusAndMapping(cablingMapDeviceBuffer.get(), size);
     }
-    cms::cuda::device::unique_ptr<std::byte[]> cablingMapBuffer;
+    cms::cuda::device::unique_ptr<std::byte[]> cablingMapDeviceBuffer;
     SiPixelROCsStatusAndMapping cablingMapDevice = SiPixelROCsStatusAndMapping(nullptr, 0); // map struct in GPU
   };
   cms::cuda::ESProduct<GPUData> gpuData_;

@@ -33,7 +33,7 @@ void SiPixelROCsStatusAndMappingWrapperESProducer::produce(edm::EventSetup& even
     // We use default alignment
     auto objBuffer = std::make_unique<std::byte[]>(SiPixelROCsStatusAndMapping::computeDataSize(pixelgpudetails::MAX_SIZE));
     SiPixelROCsStatusAndMapping obj(objBuffer.get(), pixelgpudetails::MAX_SIZE);
-    in.read(reinterpret_cast<char *>(objBuffer.get()), SiPixelROCsStatusAndMapping::computeDataSize(pixelgpudetails::MAX_SIZE));
+    in.read(reinterpret_cast<char *>(obj.soaMetadata().baseAddress()), obj.soaMetadata().byteSize());
     unsigned int modToUnpDefSize;
     in.read(reinterpret_cast<char*>(&modToUnpDefSize), sizeof(unsigned int));
     std::vector<unsigned char> modToUnpDefault(modToUnpDefSize);
