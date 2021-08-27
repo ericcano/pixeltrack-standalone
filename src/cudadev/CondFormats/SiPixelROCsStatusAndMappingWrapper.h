@@ -3,6 +3,7 @@
 
 #include "CUDACore/ESProduct.h"
 #include "CUDACore/HostAllocator.h"
+#include "CUDACore/host_unique_ptr.h"
 #include "CUDACore/device_unique_ptr.h"
 #include "CondFormats/SiPixelROCsStatusAndMapping.h"
 
@@ -14,7 +15,6 @@ class SiPixelROCsStatusAndMappingWrapper {
 public:
   explicit SiPixelROCsStatusAndMappingWrapper(SiPixelROCsStatusAndMapping const &cablingMap,
                                           std::vector<unsigned char> modToUnp);
-  ~SiPixelROCsStatusAndMappingWrapper();
 
   bool hasQuality() const { return hasQuality_; }
 
@@ -28,17 +28,15 @@ private:
   std::vector<unsigned char, cms::cuda::HostAllocator<unsigned char>> modToUnpDefault;
   bool hasQuality_;
 
-  SiPixelROCsStatusAndMapping *cablingMapHost = nullptr;  // pointer to struct in CPU
+  cms::cuda::host::unique_ptr<SiPixelROCsStatusAndMapping> cablingMapHost;  // pointer to struct in CPU
 
   struct GPUData {
-    ~GPUData();
-    SiPixelROCsStatusAndMapping *cablingMapDevice = nullptr;  // pointer to struct in GPU
+    cms::cuda::device::unique_ptr<SiPixelROCsStatusAndMapping> cablingMapDevice;  // pointer to struct in GPU
   };
   cms::cuda::ESProduct<GPUData> gpuData_;
 
   struct ModulesToUnpack {
-    ~ModulesToUnpack();
-    unsigned char *modToUnpDefault = nullptr;  // pointer to GPU
+    cms::cuda::device::unique_ptr<unsigned char []> modToUnpDefault;  // pointer to GPU
   };
   cms::cuda::ESProduct<ModulesToUnpack> modToUnp_;
 };
