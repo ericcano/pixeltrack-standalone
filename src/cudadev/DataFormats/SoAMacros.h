@@ -489,7 +489,7 @@ struct SoAIntrospector {
   SOA_HOST_DEVICE_INLINE size_t size() const { return parent_.nElements_; }
   SOA_HOST_DEVICE_INLINE size_t byteSize() const { return parent_.byteSize_; }
   SOA_HOST_DEVICE_INLINE size_t byteAlignment() const { return parent_.byteAlignment_; }
-  SOA_HOST_DEVICE_INLINE std::byte* baseAddress() const { return parent_.mem_; }
+  SOA_HOST_DEVICE_INLINE std::byte* data() const { return parent_.mem_; }
   SOA_HOST_DEVICE_INLINE C cloneToNewAddress(std::byte* addr) { return C(addr, parent_.nElements_, parent_.byteAlignment_ ); }
   
 private:

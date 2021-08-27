@@ -182,7 +182,7 @@ namespace pixelgpudetails {
   __device__ uint8_t checkROC(uint32_t errorWord,
                               uint8_t fedId,
                               uint32_t link,
-                              const SiPixelROCsStatusAndMapping *cablingMap,
+                              const SiPixelROCsStatusAndMapping &cablingMap,
                               bool debug = false) {
     uint8_t errorType = (errorWord >> sipixelconstants::ROC_shift) & sipixelconstants::ERROR_mask;
     if (errorType < 25)
@@ -193,8 +193,8 @@ namespace pixelgpudetails {
       case (25): {
         errorFound = true;
         auto index = cablingIndex(fedId, link, 1);
-        if (index > 1 && index <= cablingMap->size) {
-          if (!(link == cablingMap->link[index] && 1 == cablingMap->roc[index]))
+        if (index > 1 && index <= cablingMap.size()) {
+          if (!(link == cablingMap[index].link && 1 == cablingMap[index].roc))
             errorFound = false;
         }
         if (debug and errorFound)
@@ -262,7 +262,7 @@ namespace pixelgpudetails {
   __device__ uint32_t getErrRawID(uint8_t fedId,
                                   uint32_t errWord,
                                   uint32_t errorType,
-                                  const SiPixelROCsStatusAndMapping *cablingMap,
+                                  const SiPixelROCsStatusAndMapping &cablingMap,
                                   bool debug = false) {
     uint32_t rID = 0xffffffff;
 
@@ -274,7 +274,7 @@ namespace pixelgpudetails {
       case 40: {
         uint32_t roc = 1;
         uint32_t link = sipixelconstants::getLink(errWord);
-        uint32_t rID_temp = cablingMap->rawId[cablingIndex(fedId, link, roc)];
+        uint32_t rID_temp = cablingMap[cablingIndex(fedId, link, roc)].rawId;
         if (rID_temp != gpuClustering::invalidModuleId)
           rID = rID_temp;
         break;
@@ -307,7 +307,7 @@ namespace pixelgpudetails {
 
         uint32_t roc = 1;
         uint32_t link = chanNmbr;
-        uint32_t rID_temp = cablingMap->rawId[cablingIndex(fedId, link, roc)];
+        uint32_t rID_temp = cablingMap[cablingIndex(fedId, link, roc)].rawId;
         if (rID_temp != gpuClustering::invalidModuleId)
           rID = rID_temp;
         break;
@@ -316,7 +316,7 @@ namespace pixelgpudetails {
       case 38: {
         uint32_t roc = sipixelconstants::getROC(errWord);
         uint32_t link = sipixelconstants::getLink(errWord);
-        uint32_t rID_temp = cablingMap->rawId[cablingIndex(fedId, link, roc)];
+        uint32_t rID_temp = cablingMap[cablingIndex(fedId, link, roc)].rawId;
         if (rID_temp != gpuClustering::invalidModuleId)
           rID = rID_temp;
         break;
@@ -329,7 +329,7 @@ namespace pixelgpudetails {
   }
 
   // Kernel to perform Raw to Digi conversion
-  __global__ void RawToDigi_kernel(const SiPixelROCsStatusAndMapping *cablingMap,
+  __global__ void RawToDigi_kernel(const SiPixelROCsStatusAndMapping cablingMap,
                                    const unsigned char *modToUnp,
                                    const uint32_t wordCounter,
                                    const uint32_t *word,
@@ -370,6 +370,7 @@ namespace pixelgpudetails {
       uint32_t link = sipixelconstants::getLink(ww);  // Extract link
       uint32_t roc = sipixelconstants::getROC(ww);    // Extract Roc in link
       auto index = cablingIndex(fedId, link, roc);
+      auto detId = cablingMap[cablingIndex(fedId, link, roc)];
 
       uint8_t errorType = checkROC(ww, fedId, link, cablingMap, debug);
       skipROC = (roc < pixelgpudetails::maxROCIndex) ? false : (errorType != 0);
@@ -379,12 +380,12 @@ namespace pixelgpudetails {
         continue;
       }
 
-      auto rawId = cablingMap->rawId[index];
-      auto rocIdInDetUnit = cablingMap->rocInDet[index];
+      auto rawId = detId.rawId;
+      auto rocIdInDetUnit = detId.rocInDet;
       bool barrel = isBarrel(rawId);
 
       if (useQualityInfo) {
-        skipROC = cablingMap->badRocs[index];
+        skipROC = cablingMap[index].badRocs;
         if (skipROC)
           continue;
       }
@@ -444,7 +445,7 @@ namespace pixelgpudetails {
       yy[gIndex] = globalPix.col;  // origin shifting by 1 0-415
       adc[gIndex] = sipixelconstants::getADC(ww);
       pdigi[gIndex] = pixelgpudetails::pack(globalPix.row, globalPix.col, adc[gIndex]);
-      moduleId[gIndex] = cablingMap->moduleId[index];
+      moduleId[gIndex] = detId.moduleId;
       rawIdArr[gIndex] = rawId;
     }  // end of loop (gIndex < end)
 
@@ -493,7 +494,7 @@ namespace pixelgpudetails {
   // Interface to outside
   void SiPixelRawToClusterGPUKernel::makeClustersAsync(bool isRun2,
                                                        const SiPixelClusterThresholds clusterThresholds,
-                                                       const SiPixelROCsStatusAndMapping *cablingMap,
+                                                       const SiPixelROCsStatusAndMapping &cablingMap,
                                                        const unsigned char *modToUnp,
                                                        const SiPixelGainForHLTonGPU *gains,
                                                        const WordFedAppender &wordFed,

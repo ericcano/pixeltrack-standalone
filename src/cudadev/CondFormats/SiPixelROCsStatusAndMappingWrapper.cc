@@ -13,26 +13,29 @@
 #include "CUDACore/host_unique_ptr.h"
 #include "CUDADataFormats/gpuClusteringConstants.h"
 #include "CondFormats/SiPixelROCsStatusAndMappingWrapper.h"
+#include "CUDACore/copyAsync.h"
 
 SiPixelROCsStatusAndMappingWrapper::SiPixelROCsStatusAndMappingWrapper(SiPixelROCsStatusAndMapping const& cablingMap,
                                                                std::vector<unsigned char> modToUnp)
     : modToUnpDefault(modToUnp.size()), hasQuality_(true) {
-  cablingMapHost = cms::cuda::make_host_unique<SiPixelROCsStatusAndMapping>(cudaStreamDefault);
-  std::memcpy(cablingMapHost.get(), &cablingMap, sizeof(SiPixelROCsStatusAndMapping));
-
+  // TODO: check if cudaStreamDefault is appropriate
+  auto cablingMapMetadata = cablingMap.soaMetadata();
+  cablingMapHostBuffer = cms::cuda::make_host_unique<std::byte[]>(cablingMapMetadata.byteSize(), cudaStreamDefault);
+  std::memcpy(cablingMapHostBuffer.get(), cablingMapMetadata.data(), cablingMapMetadata.byteSize());
   std::copy(modToUnp.begin(), modToUnp.end(), modToUnpDefault.begin());
 }
 
-const SiPixelROCsStatusAndMapping* SiPixelROCsStatusAndMappingWrapper::getGPUProductAsync(cudaStream_t cudaStream) const {
-  const auto& data = gpuData_.dataForCurrentDeviceAsync(cudaStream, [this](GPUData& data, cudaStream_t stream) {
-    // allocate
-    data.cablingMapDevice = cms::cuda::make_device_unique<SiPixelROCsStatusAndMapping>(stream);
-
-    // transfer
-    cudaCheck(cudaMemcpyAsync(
-        data.cablingMapDevice.get(), this->cablingMapHost.get(), sizeof(SiPixelROCsStatusAndMapping), cudaMemcpyDefault, stream));
-  });
-  return data.cablingMapDevice.get();
+const SiPixelROCsStatusAndMapping & SiPixelROCsStatusAndMappingWrapper::getGPUProductAsync(cudaStream_t cudaStream) const {
+  const auto& data = gpuData_.dataForCurrentDeviceAsync(cudaStream, 
+    [this](GPUData& data, cudaStream_t stream) {
+      // allocate
+      data.allocate(pixelgpudetails::MAX_SIZE, stream);
+      // transfer
+      cms::cuda::copyAsync(data.cablingMapDeviceBuffer, this->cablingMapHostBuffer, 
+        data.cablingMapDevice.soaMetadata().byteSize(), stream);
+    }
+  );
+  return data.cablingMapDevice;
 }
 
 const unsigned char* SiPixelROCsStatusAndMappingWrapper::getModToUnpAllAsync(cudaStream_t cudaStream) const {
