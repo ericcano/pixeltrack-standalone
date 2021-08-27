@@ -54,19 +54,14 @@ namespace pixelgpudetails {
 
   ////////////////////
 
+  __device__ uint32_t cablingIndex(uint8_t fed, uint32_t link, uint32_t roc) {
+    return fed * MAX_LINK * MAX_ROC + (link - 1) * MAX_ROC + roc;
+  }
+
   __device__ bool isBarrel(uint32_t rawId) {
     return (PixelSubdetector::PixelBarrel == ((rawId >> DetId::kSubdetOffset) & DetId::kSubdetMask));
   }
 
-  __device__ pixelgpudetails::DetIdGPU getRawId(const SiPixelROCsStatusAndMapping *cablingMap,
-                                                uint8_t fed,
-                                                uint32_t link,
-                                                uint32_t roc) {
-    uint32_t index = fed * MAX_LINK * MAX_ROC + (link - 1) * MAX_ROC + roc;
-    pixelgpudetails::DetIdGPU detId = {
-        cablingMap->rawId[index], cablingMap->rocInDet[index], cablingMap->moduleId[index]};
-    return detId;
-  }
 
   //reference http://cmsdoxygen.web.cern.ch/cmsdoxygen/CMSSW_9_2_0/doc/html/dd/d31/FrameConversion_8cc_source.html
   //http://cmslxr.fnal.gov/source/CondFormats/SiPixelObjects/src/PixelROC.cc?v=CMSSW_9_2_0#0071
@@ -197,7 +192,7 @@ namespace pixelgpudetails {
     switch (errorType) {
       case (25): {
         errorFound = true;
-        uint32_t index = fedId * MAX_LINK * MAX_ROC + (link - 1) * MAX_ROC + 1;
+        auto index = cablingIndex(fedId, link, 1);
         if (index > 1 && index <= cablingMap->size) {
           if (!(link == cablingMap->link[index] && 1 == cablingMap->roc[index]))
             errorFound = false;
@@ -279,7 +274,7 @@ namespace pixelgpudetails {
       case 40: {
         uint32_t roc = 1;
         uint32_t link = sipixelconstants::getLink(errWord);
-        uint32_t rID_temp = getRawId(cablingMap, fedId, link, roc).rawId;
+        uint32_t rID_temp = cablingMap->rawId[cablingIndex(fedId, link, roc)];
         if (rID_temp != gpuClustering::invalidModuleId)
           rID = rID_temp;
         break;
@@ -312,7 +307,7 @@ namespace pixelgpudetails {
 
         uint32_t roc = 1;
         uint32_t link = chanNmbr;
-        uint32_t rID_temp = getRawId(cablingMap, fedId, link, roc).rawId;
+        uint32_t rID_temp = cablingMap->rawId[cablingIndex(fedId, link, roc)];
         if (rID_temp != gpuClustering::invalidModuleId)
           rID = rID_temp;
         break;
@@ -321,7 +316,7 @@ namespace pixelgpudetails {
       case 38: {
         uint32_t roc = sipixelconstants::getROC(errWord);
         uint32_t link = sipixelconstants::getLink(errWord);
-        uint32_t rID_temp = getRawId(cablingMap, fedId, link, roc).rawId;
+        uint32_t rID_temp = cablingMap->rawId[cablingIndex(fedId, link, roc)];
         if (rID_temp != gpuClustering::invalidModuleId)
           rID = rID_temp;
         break;
@@ -374,7 +369,7 @@ namespace pixelgpudetails {
 
       uint32_t link = sipixelconstants::getLink(ww);  // Extract link
       uint32_t roc = sipixelconstants::getROC(ww);    // Extract Roc in link
-      pixelgpudetails::DetIdGPU detId = getRawId(cablingMap, fedId, link, roc);
+      auto index = cablingIndex(fedId, link, roc);
 
       uint8_t errorType = checkROC(ww, fedId, link, cablingMap, debug);
       skipROC = (roc < pixelgpudetails::maxROCIndex) ? false : (errorType != 0);
@@ -384,11 +379,10 @@ namespace pixelgpudetails {
         continue;
       }
 
-      uint32_t rawId = detId.rawId;
-      uint32_t rocIdInDetUnit = detId.rocInDet;
+      auto rawId = cablingMap->rawId[index];
+      auto rocIdInDetUnit = cablingMap->rocInDet[index];
       bool barrel = isBarrel(rawId);
 
-      uint32_t index = fedId * MAX_LINK * MAX_ROC + (link - 1) * MAX_ROC + roc;
       if (useQualityInfo) {
         skipROC = cablingMap->badRocs[index];
         if (skipROC)
@@ -450,7 +444,7 @@ namespace pixelgpudetails {
       yy[gIndex] = globalPix.col;  // origin shifting by 1 0-415
       adc[gIndex] = sipixelconstants::getADC(ww);
       pdigi[gIndex] = pixelgpudetails::pack(globalPix.row, globalPix.col, adc[gIndex]);
-      moduleId[gIndex] = detId.moduleId;
+      moduleId[gIndex] = cablingMap->moduleId[index];
       rawIdArr[gIndex] = rawId;
     }  // end of loop (gIndex < end)
 

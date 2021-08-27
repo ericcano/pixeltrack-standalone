@@ -44,12 +44,6 @@ namespace pixelgpudetails {
 
   const uint32_t MAX_WORD = 2000;
 
-  struct DetIdGPU {
-    uint32_t rawId;
-    uint32_t rocInDet;
-    uint32_t moduleId;
-  };
-
   struct Pixel {
     uint32_t row;
     uint32_t col;
