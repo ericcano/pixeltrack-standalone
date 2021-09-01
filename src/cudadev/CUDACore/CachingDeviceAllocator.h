@@ -236,7 +236,8 @@ namespace notcub {
     size_t max_cached_bytes;  /// Maximum aggregate cached bytes per device
 
     const bool
-        skip_cleanup;  /// Whether or not to skip a call to FreeAllCached() when destructor is called.  (The CUDA runtime may have already shut down for statically declared allocators)
+        skip_cleanup;  /// Whether or not to skip a call to FreeAllCached() when destructor is called.  
+                       /// (The CUDA runtime may have already shut down for statically declared allocators)
     bool debug;        /// Whether or not to print (de)allocation events to stdout
 
     GpuCachedBytes cached_bytes;  /// Map of device ordinal to aggregate cached bytes on that device
@@ -332,7 +333,7 @@ namespace notcub {
         int device,                            ///< [in] Device on which to place the allocation
         void **d_ptr,                          ///< [out] Reference to pointer to the allocation
         size_t bytes,                          ///< [in] Minimum number of bytes for the allocation
-        cudaStream_t active_stream = nullptr)  ///< [in] The stream to be associated with this allocation
+        cudaStream_t active_stream = cudaStreamDefault)  ///< [in] The stream to be associated with this allocation
     {
       // CMS: use RAII instead of (un)locking explicitly
       std::unique_lock<std::mutex> mutex_locker(mutex, std::defer_lock);
