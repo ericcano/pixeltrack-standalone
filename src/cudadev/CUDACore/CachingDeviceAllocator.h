@@ -42,6 +42,7 @@
 #include <map>
 #include <set>
 #include <mutex>
+#include <vector>
 
 #include "CUDACore/cudaCheck.h"
 #include "CUDACore/deviceAllocatorStatus.h"
@@ -164,6 +165,14 @@ namespace notcub {
         else
           return (a.device < b.device);
       }
+    };
+
+    /**
+     * Descriptor for delayed freeing, postponed to outside of critical sections.
+     */
+    struct BlockAndEvent {
+      void * d_ptr;
+      cudaEvent_t readyEvent;
     };
 
     /// BlockDescriptor comparator function interface
@@ -445,17 +454,17 @@ namespace notcub {
           BlockDescriptor free_key(device);
           CachedBlocks::iterator block_itr = cached_blocks.lower_bound(free_key);
 
+          // Store the list of memory blocks and events to release (this will be done
+          // outside of the critical section
+          std::vector <BlockAndEvent> toFree;
+
           while ((block_itr != cached_blocks.end()) && (block_itr->device == device)) {
             // No need to worry about synchronization with the device: cudaFree is
             // blocking and will synchronize across all kernels executing
             // on the current device
 
-            // Free device memory and destroy stream event.
-            // CMS: silently ignore errors and pass them to the caller
-            if ((error = cudaFree(block_itr->d_ptr)))
-              break;
-            if ((error = cudaEventDestroy(block_itr->ready_event)))
-              break;
+            // CMS: Free device memory and destroy stream event later.
+            toFree.push_back(BlockAndEvent{block_itr->d_ptr, block_itr->ready_event});
 
             // Reduce balance and erase entry
             cached_bytes[device].free -= block_itr->bytes;
@@ -479,6 +488,17 @@ namespace notcub {
 
           // Unlock
           mutex_locker.unlock();
+
+          // CMS: Free blocks and events outside of the critical section. Keep track of first error for reporting,
+          // yet attempt to free all memory blocks and events.
+          // CMS: silently ignore errors and pass them to the caller
+          for (auto &tf: toFree) {
+            auto eb = cudaFree(tf.d_ptr);
+            auto ee = cudaEventDestroy(tf.readyEvent);
+            if (!error) error = eb;
+            if (!error) error = ee;
+          }
+          toFree.clear();
 
           // Return under error
           if (error)
@@ -667,6 +687,10 @@ namespace notcub {
       cudaError_t error = cudaSuccess;
       int entrypoint_device = INVALID_DEVICE_ORDINAL;
       int current_device = INVALID_DEVICE_ORDINAL;
+      // CMS: Store the list of memory blocks and events to release (this will be done
+      // outside of the critical section
+      std::vector <BlockAndEvent> toFree;
+
       // CMS: use RAII instead of (un)locking explicitly
       std::unique_lock<std::mutex> mutex_locker(mutex);
 
@@ -689,12 +713,8 @@ namespace notcub {
           current_device = begin->device;
         }
 
-        // Free device memory
-        // CMS: silently ignore errors and pass them to the caller
-        if ((error = cudaFree(begin->d_ptr)))
-          break;
-        if ((error = cudaEventDestroy(begin->ready_event)))
-          break;
+        // CMS: Actually free device memory later
+        toFree.push_back(BlockAndEvent{begin->d_ptr, begin->ready_event});
 
         // Reduce balance and erase entry
         cached_bytes[current_device].free -= begin->bytes;
@@ -714,6 +734,17 @@ namespace notcub {
       }
 
       mutex_locker.unlock();
+
+      // CMS: silently ignore errors and pass them to the caller
+      // Free blocks and events outside of the critical section. Keep track of first error for reporting, yet attempt to free all
+      // memory blocks and events.
+      for (auto &tf: toFree) {
+        auto eb = cudaFree(tf.d_ptr);
+        auto ee = cudaEventDestroy(tf.readyEvent);
+        if (!error) error = eb;
+        if (!error) error = ee;
+      }
+      toFree.clear();
 
       // Attempt to revert back to entry-point device if necessary
       if (entrypoint_device != INVALID_DEVICE_ORDINAL) {
