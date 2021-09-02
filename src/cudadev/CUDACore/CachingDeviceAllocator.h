@@ -585,7 +585,9 @@ namespace notcub {
         cudaCheck(error = cudaGetDevice(&entrypoint_device));
         device = entrypoint_device;
       }
-
+      
+      bool hasEventRecord = false;
+    retry:
       // Lock
       mutex_locker.lock();
 
@@ -596,12 +598,27 @@ namespace notcub {
       if (block_itr != live_blocks.end()) {
         // Remove from live blocks
         search_key = *block_itr;
-        live_blocks.erase(block_itr);
         cached_bytes[device].live -= search_key.bytes;
         cached_bytes[device].liveRequested -= search_key.bytesRequested;  // CMS
 
         // Keep the returned allocation if bin is valid and we won't exceed the max cached threshold
         if ((search_key.bin != INVALID_BIN) && (cached_bytes[device].free + search_key.bytes <= max_cached_bytes)) {
+          // We want to recache, but we should avoid calling the costly cudaEventRecord with the mutex locked
+          if (!hasEventRecord) {
+            // Roll back counts
+            cached_bytes[device].live += search_key.bytes;
+            cached_bytes[device].liveRequested += search_key.bytesRequested;  // CMS
+            // Keep what we need
+            auto event = search_key.ready_event;
+            auto stream = search_key.associated_stream;
+            // Release lock
+            mutex_locker.unlock();
+            // Get the event for next time
+            cudaCheck(error = cudaEventRecord(event, stream));
+            // We now have the event ready for next pass
+            hasEventRecord = true;
+            goto retry;
+          }
           // Insert returned allocation into free blocks
           recached = true;
           cached_blocks.insert(search_key);
@@ -623,6 +640,7 @@ namespace notcub {
                 (long long)live_blocks.size(),
                 (long long)cached_bytes[device].live);
         }
+        live_blocks.erase(block_itr);
       }
 
       // First set to specified device (entrypoint may not be set)
@@ -630,12 +648,6 @@ namespace notcub {
         // CMS: throw exception on error
         cudaCheck(error = cudaGetDevice(&entrypoint_device));
         cudaCheck(error = cudaSetDevice(device));
-      }
-
-      if (recached) {
-        // Insert the ready event in the associated stream (must have current device set properly)
-        // CMS: throw exception on error
-        cudaCheck(error = cudaEventRecord(search_key.ready_event, search_key.associated_stream));
       }
 
       // Unlock
