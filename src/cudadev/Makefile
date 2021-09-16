@@ -35,7 +35,7 @@ $(1)_DEP := $$($(1)_OBJ:$.o=$.d)
 ALL_DEPENDS += $$($(1)_DEP)
 $(1)_LIB := $(LIB_DIR)/$(TARGET_NAME)/lib$(1).so
 LIBS += $$($(1)_LIB)
-$(1)_LDFLAGS := -l$(1)
+$(1)_LDFLAGS := -l$(1) -lnvToolsExt
 endef
 $(foreach lib,$(LIBNAMES),$(eval $(call LIB_template,$(lib))))
 
