@@ -22,7 +22,7 @@ EXE_DEP := $(EXE_OBJ:$.o=$.d)
 LIBNAMES := $(filter-out plugin-% bin test Makefile% plugins.txt%,$(wildcard *))
 PLUGINNAMES := $(patsubst plugin-%,%,$(filter plugin-%,$(wildcard *)))
 MY_CXXFLAGS := -I$(TARGET_DIR) -DSRC_DIR=$(TARGET_DIR) -DLIB_DIR=$(LIB_DIR)/$(TARGET_NAME)
-MY_LDFLAGS := -ldl -Wl,-rpath,$(LIB_DIR)/$(TARGET_NAME)
+MY_LDFLAGS := -ldl -lnvToolsExt -Wl,-rpath,$(LIB_DIR)/$(TARGET_NAME)
 LIB_LDFLAGS := -L$(LIB_DIR)/$(TARGET_NAME)
 
 ALL_DEPENDS := $(EXE_DEP)
@@ -35,7 +35,7 @@ $(1)_DEP := $$($(1)_OBJ:$.o=$.d)
 ALL_DEPENDS += $$($(1)_DEP)
 $(1)_LIB := $(LIB_DIR)/$(TARGET_NAME)/lib$(1).so
 LIBS += $$($(1)_LIB)
-$(1)_LDFLAGS := -l$(1)
+$(1)_LDFLAGS := -l$(1) -lnvToolsExt
 endef
 $(foreach lib,$(LIBNAMES),$(eval $(call LIB_template,$(lib))))
 

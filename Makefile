@@ -39,7 +39,7 @@ CUDA_LIBDIR := $(CUDA_BASE)/lib64
 USER_CUDAFLAGS :=
 export CUDA_BASE
 export CUDA_DEPS := $(CUDA_LIBDIR)/libcudart.so
-export CUDA_ARCH := 35 50 60 70
+export CUDA_ARCH := 75
 export CUDA_CXXFLAGS := -I$(CUDA_BASE)/include
 export CUDA_TEST_CXXFLAGS := -DGPU_DEBUG
 export CUDA_LDFLAGS := -L$(CUDA_LIBDIR) -lcudart -lcudadevrt

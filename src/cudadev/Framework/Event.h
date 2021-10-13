@@ -4,6 +4,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <nvToolsExt.h>
 
 #include "Framework/ProductRegistry.h"
 
@@ -31,7 +32,9 @@ namespace edm {
   class Event {
   public:
     explicit Event(int streamId, int eventId, ProductRegistry const& reg)
-        : streamId_(streamId), eventId_(eventId), products_(reg.size()) {}
+        : streamId_(streamId), eventId_(eventId), products_(reg.size()), nvtxRange_(nvtxRangeStartA("Event")) {}
+        
+    ~Event() { nvtxRangeEnd(nvtxRange_); }
 
     StreamID streamID() const { return streamId_; }
     int eventID() const { return eventId_; }
@@ -50,6 +53,7 @@ namespace edm {
     StreamID streamId_;
     int eventId_;
     std::vector<std::unique_ptr<WrapperBase>> products_;
+    nvtxRangeId_t nvtxRange_;
   };
 }  // namespace edm
 
