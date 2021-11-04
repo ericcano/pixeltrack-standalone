@@ -127,6 +127,7 @@ int main(void) {
   // Allocate buffer and store on host
   Idx hostDeviceSize = SoAHostDevice::computeDataSize(numElements);
   auto h_buf = alpaka::allocBuf<std::byte, Idx>(host, hostDeviceSize);
+  alpaka::prepareForAsyncCopy(h_buf);
   SoAHostDevice h_soahd(alpaka::getPtrNative(h_buf), numElements, byteAlignment);
   
   // Alocate buffer, stores and views on the device (single, shared buffer).
