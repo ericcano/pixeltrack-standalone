@@ -555,13 +555,13 @@ env.sh: Makefile
 	@echo 'if [ -f .original_env ]; then'                                   >> $@
 	@echo '  source .original_env'                                          >> $@
 	@echo 'else'                                                            >> $@
-	@echo '  echo "#! /bin/bash"                       >  .original_env'    >> $@
-	@echo '  echo "PATH=$$PATH"                         >> .original_env'   >> $@
-	@echo '  echo "LD_LIBRARY_PATH=$$LD_LIBRARY_PATH"   >> .original_env'   >> $@
+	@echo '  echo "#! /bin/bash"                          >  .original_env' >> $@
+	@echo '  echo "PATH=\"$$PATH"\"                       >> .original_env' >> $@
+	@echo '  echo "LD_LIBRARY_PATH=\"$$LD_LIBRARY_PATH\"" >> .original_env' >> $@
 	@echo 'fi'                                                              >> $@
 	@echo                                                                   >> $@
 	@# set the LD_LIBRARY_PATH
-	@echo -n 'export LD_LIBRARY_PATH='                                      >> $@
+	@echo -n 'export LD_LIBRARY_PATH="'                                     >> $@
 	@echo -n '$(TBB_LIBDIR):'                                               >> $@
 	@echo -n '$(BACKTRACE_BASE)/lib:'                                       >> $@
 ifeq ($(NEED_BOOST),true)
@@ -578,9 +578,9 @@ endif
 ifneq ($(SYCL_BASE),)
 	@echo -n '$(SYCL_LDPATH):'                                              >> $@
 endif
-	@echo '$$LD_LIBRARY_PATH'                                               >> $@
+	@echo '$$LD_LIBRARY_PATH"'                                              >> $@
 	@# set the PATH
-	@echo -n 'export PATH='                                                 >> $@
+	@echo -n 'export PATH="'                                                >> $@
 ifdef CUDA_BASE
 	@echo -n '$(CUDA_BASE)/bin:'                                            >> $@
 endif
@@ -593,7 +593,7 @@ endif
 ifneq ($(JULIA_BASE),)
 	@echo -n '$(JULIA_BASE)/bin:'                                           >> $@
 endif
-	@echo '$$PATH'                                                          >> $@
+	@echo '$$PATH"'                                                         >> $@
 ifneq ($(SYCL_BASE),)
 	@# load the CPU OpenCL runtime
 	@echo 'export OCL_ICD_FILENAMES=$(OCL_ICD_FILENAMES)'                   >> $@
