@@ -18,6 +18,7 @@
 
 #else  // defined (__CUDA_ARCH__) || defined (__HIP_DEVICE_COMPILE__)
 
+// TODO: what about serial "device"?
 // any host compiler
 #define CMS_DEVICE_UNROLL_LOOP
 #define CMS_DEVICE_UNROLL_LOOP_COUNT(N)
