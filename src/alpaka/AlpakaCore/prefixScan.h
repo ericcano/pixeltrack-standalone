@@ -194,7 +194,7 @@ namespace cms {
 
         T* const psum = alpaka::getDynSharedMem<T>(acc);
 
-        // first each block does a scan of size warpSize² (better be enough blocks)
+        // first each block does a scan of size warpSize (better be enough blocks)
         ALPAKA_ASSERT_OFFLOAD(static_cast<int32_t>(blockDimension * threadDimension) >= numBlocks);
         for (int elemId = 0; elemId < static_cast<int>(threadDimension); ++elemId) {
           int index = +threadIdx * threadDimension + elemId;

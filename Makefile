@@ -6,8 +6,8 @@ EMPTY:=
 SPACE:= $(EMPTY) $(EMPTY)
 
 # Compiler
-export CC  := gcc
-export CXX := g++
+export CC  := gcc-14
+export CXX := g++-14
 CXX_MAJOR:=$(shell $(CXX) -dM -E -x c++ - < /dev/null | awk '/__GNUC__/ { print $$3; }')
 CXX_MINOR:=$(shell $(CXX) -dM -E -x c++ - < /dev/null | awk '/__GNUC_MINOR__/ { print $$3; }')
 CXX_VERSION:=$(shell echo $$(( $(CXX_MAJOR) * 100 + $(CXX_MINOR) )) )
@@ -28,7 +28,7 @@ $(warning GCC 10.3 is known to have issues compiled CUDA code, please consider u
 endif
 
 # Build flags
-USER_CXXFLAGS :=
+USER_CXXFLAGS := -isystem /usr/include/c++/14
 HOST_CXXFLAGS := -O2 -fPIC -fdiagnostics-show-option -felide-constructors -fmessage-length=0 -fno-math-errno -ftree-vectorize -fvisibility-inlines-hidden --param vect-max-version-for-alias-checks=50 -msse3 -pipe -pthread -Werror=address -Wall -Werror=array-bounds -Wno-attributes -Werror=conversion-null -Werror=delete-non-virtual-dtor -Wno-deprecated -Werror=format-contains-nul -Werror=format -Wno-long-long -Werror=main -Werror=missing-braces -Werror=narrowing -Wno-non-template-friend -Wnon-virtual-dtor -Werror=overflow -Werror=overlength-strings -Wparentheses -Werror=pointer-arith -Wno-psabi -Werror=reorder -Werror=return-local-addr -Wreturn-type -Werror=return-type -Werror=sign-compare -Werror=strict-aliasing -Wstrict-overflow -Werror=switch -Werror=type-limits -Wunused -Werror=unused-but-set-variable -Wno-unused-local-typedefs -Werror=unused-value -Wno-error=unused-variable -Wno-vla -Werror=write-strings -Wfatal-errors
 # in case os linker resolve errors, try adding -mcmodel=large
 
@@ -36,12 +36,12 @@ HOST_CXXFLAGS := -O2 -fPIC -fdiagnostics-show-option -felide-constructors -fmess
 LLVM_UNSUPPORTED_CXXFLAGS := --param vect-max-version-for-alias-checks=50 -Werror=format-contains-nul -Wno-non-template-friend -Werror=return-local-addr -Werror=unused-but-set-variable
 
 export CXXFLAGS := -std=c++17 $(HOST_CXXFLAGS) $(USER_CXXFLAGS) -g
-export NVCXX_CXXFLAGS := -std=c++20 -O0 -cuda -gpu=managed -stdpar -fpic -gopt $(USER_CXXFLAGS)
+export NVCXX_CXXFLAGS := -std=c++20 -O0 -cuda -gpu=managed -stdpar -fpic -gopt $(USER_CXXFLAGS) -objtemp -keep --verbose
 export LDFLAGS := -O2 -fPIC -pthread -Wl,-E -lstdc++fs -ldl
-export LDFLAGS_NVCC := -ccbin $(CXX) --linker-options '-E' --linker-options '-lstdc++fs'
-export LDFLAGS_NVCXX := -cuda -Wl,-E -ldl -gpu=managed -stdpar
+export LDFLAGS_NVCC := -ccbin $(CXX) --linker-options '-E' --linker-options '-lstdc++fs' -objtemp -keep --verbose
+export LDFLAGS_NVCXX := -cuda -Wl,-E -ldl -gpu=managed -stdpar -objtemp -keep --verbose
 export SO_LDFLAGS := -Wl,-z,defs
-export SO_LDFLAGS_NVCC := --linker-options '-z,defs'
+export SO_LDFLAGS_NVCC := --linker-options '-z,defs' -objtemp -keep --verbose
 
 GCC_TOOLCHAIN := $(abspath $(dir $(shell which $(CXX)))/..)
 GCC_TARGET    := $(shell $(CXX) -dumpmachine)
@@ -70,10 +70,10 @@ CUDA_BASE :=
 else
 # CUDA platform at $(CUDA_BASE)
 CUDA_LIBDIR := $(CUDA_BASE)/lib64
-USER_CUDAFLAGS :=
+USER_CUDAFLAGS :=  -objtemp -keep --verbose
 export CUDA_BASE
 export CUDA_DEPS := $(CUDA_LIBDIR)/libcudart.so
-export CUDA_ARCH := 50 60 70
+export CUDA_ARCH := 89 120
 export CUDA_CXXFLAGS := -I$(CUDA_BASE)/include
 export CUDA_TEST_CXXFLAGS := -DGPU_DEBUG
 export CUDA_LDFLAGS := -L$(CUDA_LIBDIR) -lcudart -lcudadevrt
@@ -285,7 +285,8 @@ TBB_CMAKEFLAGS := -DCMAKE_INSTALL_PREFIX=$(TBB_BASE) \
                   -DCMAKE_INSTALL_LIBDIR=lib \
                   -DCMAKE_HWLOC_2_INCLUDE_PATH=$(HWLOC_BASE)/include \
                   -DCMAKE_HWLOC_2_LIBRARY_PATH=$(HWLOC_BASE)/lib/libhwloc.so \
-                  -DTBB_CPF=ON
+                  -DTBB_CPF=ON \
+                  -DCMAKE_CXX_FLAGS=-Wno-error=array-bounds
 export TBB_DEPS := $(TBB_LIB)
 export TBB_CXXFLAGS := -isystem $(TBB_BASE)/include -DTBB_SUPPRESS_DEPRECATED_MESSAGES -DTBB_PREVIEW_NUMA_SUPPORT -DTBB_PREVIEW_TASK_GROUP_EXTENSIONS
 export TBB_LDFLAGS := -L$(TBB_LIBDIR) -ltbb
@@ -708,7 +709,7 @@ $(TBB_LIB):
 	mkdir -p $(TBB_TMP)
 	mkdir -p $(TBB_TMP_SRC)
 	mkdir -p $(TBB_TMP_BUILD)
-	git clone --branch v2021.9.0 https://github.com/oneapi-src/oneTBB.git $(TBB_TMP_SRC)
+	git clone --branch v2022.1.0 https://github.com/oneapi-src/oneTBB.git $(TBB_TMP_SRC)
 	cd $(TBB_TMP_BUILD)/ && $(CMAKE) $(TBB_TMP_SRC) $(TBB_CMAKEFLAGS)
 	+$(MAKE) -C $(TBB_TMP_BUILD)
 	+$(MAKE) -C $(TBB_TMP_BUILD) install
@@ -774,7 +775,7 @@ $(HWLOC_BASE):
 external_alpaka: $(ALPAKA_BASE)
 
 $(ALPAKA_BASE):
-	git clone https://github.com/alpaka-group/alpaka.git -b develop $@
+	git clone https://github.com/alpaka-group/alpaka.git -b 1.2.0 $@
 	cd $@ && git checkout bb74c9129e8761cb74b9733b034eec62f7c0f600
 
 # Kokkos
