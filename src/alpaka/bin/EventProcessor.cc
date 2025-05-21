@@ -10,6 +10,7 @@
 
 #include "EventProcessor.h"
 
+#pragma GCC optimize ("O0")
 namespace edm {
   EventProcessor::EventProcessor(int warmupEvents,
                                  int maxEvents,

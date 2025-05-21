@@ -21,6 +21,8 @@
 #include "EventProcessor.h"
 #include "PosixClockGettime.h"
 
+  #pragma GCC optimize ("O0")
+
 namespace {
   void print_help(std::string const& name) {
     std::cout
@@ -187,6 +189,10 @@ int main(int argc, char** argv) {
       return EXIT_FAILURE;
     }
   }
+  if (backends.empty() and not empty) {
+    std::cout << "No backend selected, please select at least one" << std::endl;
+    return EXIT_FAILURE;
+  }
   if (maxEvents >= 0 and runForMinutes >= 0) {
     std::cout << "Got both --maxEvents and --runForMinutes, please give only one of them" << std::endl;
     return EXIT_FAILURE;
@@ -314,6 +320,7 @@ int main(int argc, char** argv) {
   auto cpu_start = PosixClockGettime<CLOCK_PROCESS_CPUTIME_ID>::now();
   auto start = std::chrono::high_resolution_clock::now();
   try {
+    // Bootstrap multithreading. The rest of the processing is running as the initial task in TBB.
     tbb::task_arena arena(numberOfThreads);
     arena.execute([&] { processor.runToCompletion(); });
   } catch (std::runtime_error& e) {

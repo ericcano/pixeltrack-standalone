@@ -15,6 +15,8 @@
 #include "Source.h"
 #include "StreamSchedule.h"
 
+#pragma GCC optimize ("O0")
+
 namespace edm {
   StreamSchedule::StreamSchedule(ProductRegistry reg,
                                  edmplugin::PluginManager& pluginManager,
@@ -49,6 +51,7 @@ namespace edm {
   void StreamSchedule::runToCompletionAsync(WaitingTaskHolder h) {
     auto task = make_functor_task([this, h]() mutable { processOneEventAsync(std::move(h)); });
     if (streamId_ == 0) {
+      // Taskgroup -> run is not blocking
       h.group()->run([task]() {
         TaskSentry s{task};
         task->execute();
