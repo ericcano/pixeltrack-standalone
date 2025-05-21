@@ -7,10 +7,13 @@
 #include <utility>
 #include <vector>
 
+#include "nvtx3/nvtx3.hpp"
+
 #include "Framework/WaitingTask.h"
 #include "Framework/WaitingTaskHolder.h"
 #include "Framework/WaitingTaskList.h"
 #include "Framework/WaitingTaskWithArenaHolder.h"
+#include "Framework/demangle.h"
 
 namespace edm {
   class Event;
@@ -21,6 +24,7 @@ namespace edm {
   public:
     Worker() : prefetchRequested_{false} {}
     virtual ~Worker() = default;
+    virtual const std::string & type() { static std::string name="edm::Worker"; return name; }
 
     // not thread safe
     void setItemsToGet(std::vector<Worker*> workers) { itemsToGet_ = std::move(workers); }
@@ -53,12 +57,19 @@ namespace edm {
   public:
     explicit WorkerT(ProductRegistry& reg) : producer_(reg), workStarted_{false} {}
 
+    const std::string & type() override {
+      static const std::string name = edm::demangle<T>;
+      return name;
+    }
+
     void doWorkAsync(Event& event, EventSetup const& eventSetup, WaitingTaskHolder task) override {
+
       waitingTasksWork_.add(task);
       //std::cout << "doWorkAsync for " << this << " with iTask " << iTask << std::endl;
       bool expected = false;
       if (workStarted_.compare_exchange_strong(expected, true)) {
         //std::cout << "first doWorkAsync call" << std::endl;
+        nvtx3::scoped_range r{this->type()};
 
         WaitingTask* moduleTask =
             make_waiting_task([this, &event, &eventSetup](std::exception_ptr const* iPtr) mutable {
@@ -68,6 +79,7 @@ namespace edm {
                 std::exception_ptr exceptionPtr;
                 try {
                   //std::cout << "calling doProduce " << this << std::endl;
+                  nvtx3::scoped_range r{this->type() + "_produce"};
                   producer_.doProduce(event, eventSetup);
                 } catch (...) {
                   exceptionPtr = std::current_exception();
@@ -82,6 +94,7 @@ namespace edm {
           moduleTask = make_waiting_task([this, &event, &eventSetup, runProduceHolder = std::move(runProduceHolder)](
                                              std::exception_ptr const* iPtr) mutable {
             if (iPtr) {
+              nvtx3::scoped_range r{this->type() + "_done_waiting"};
               runProduceHolder.doneWaiting(*iPtr);
             } else {
               std::exception_ptr exceptionPtr;
