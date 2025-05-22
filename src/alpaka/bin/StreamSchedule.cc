@@ -17,6 +17,9 @@
 
 #pragma GCC optimize ("O0")
 
+namespace {
+  struct D_ss { static constexpr const char name[] = "StreamSchedule::"; };
+}
 namespace edm {
   StreamSchedule::StreamSchedule(ProductRegistry reg,
                                  edmplugin::PluginManager& pluginManager,
@@ -49,6 +52,7 @@ namespace edm {
   StreamSchedule& StreamSchedule::operator=(StreamSchedule&&) = default;
 
   void StreamSchedule::runToCompletionAsync(WaitingTaskHolder h) {
+    nvtx3::scoped_range_in<D_ss> sri{"runToCompletionAsync", nvtx3::payload{streamId_}};
     auto task = make_functor_task([this, h]() mutable { processOneEventAsync(std::move(h)); });
     if (streamId_ == 0) {
       // Taskgroup -> run is not blocking
@@ -68,6 +72,10 @@ namespace edm {
   void StreamSchedule::processOneEventAsync(WaitingTaskHolder h) {
     auto event = source_->produce(streamId_, registry_);
     if (event) {
+      uint8_t r = (event->eventID() * 10) % 0xFF;
+      uint8_t g = (event->eventID() * 15 + 0x50) % 0xFF;
+      uint8_t b = (event->eventID() * 20 + 0xA0) % 0xFF;
+      nvtx3::scoped_range_in<D_ss> sri{"processOneEventAsync", nvtx3::rgb{r,g,b}, nvtx3::payload{event->eventID()}};
       // Pass the event object ownership to the "end-of-event" task
       // Pass a non-owning pointer to the event to preceding tasks
       //std::cout << "Begin processing event " << event->eventID() << std::endl;
