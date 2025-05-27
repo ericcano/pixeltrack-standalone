@@ -370,14 +370,14 @@ namespace cms::alpakatools {
   typename CachingAllocator<TDev, TQueue>::Buffer CachingAllocator<TDev, TQueue>::allocateBuffer(size_t bytes,
                                                                                                  Queue const& queue) {
     if constexpr (std::is_same_v<Device, alpaka::Dev<Queue>>) {
-      // Allocate device memory.
+      // allocate device memory
       return alpaka::allocBuf<std::byte, size_t>(device_, bytes);
     } else if constexpr (std::is_same_v<Device, alpaka::DevCpu>) {
-      // Allocate pinned host memory accessible by the queue's platform.
-      using Platform = alpaka::Platform<alpaka::Dev<Queue>>;
-      return alpaka::allocMappedBuf<Platform, std::byte, size_t>(device_, platform<Platform>(), bytes);
+      // allocate pinned host memory accessible by the queue's platform
+      return alpaka::allocMappedBuf<alpaka::Platform<alpaka::Dev<Queue>>, std::byte, size_t>(
+          device_, platform<alpaka::Platform<alpaka::Dev<Queue>>>(), bytes);
     } else {
-      // Unsupported combination.
+      // unsupported combination
       static_assert(std::is_same_v<Device, alpaka::Dev<Queue>> or std::is_same_v<Device, alpaka::DevCpu>,
                     "The \"memory device\" type can either be the same as the \"synchronisation device\" type, or be "
                     "the host CPU.");

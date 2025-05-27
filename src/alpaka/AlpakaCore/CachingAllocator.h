@@ -162,6 +162,22 @@ namespace cms::alpakatools {
     const bool reuseSameQueueAllocations_;
     const bool debug_;
   };
+#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
+  extern template class CachingAllocator<alpaka_cuda_async::Device, alpaka_cuda_async::Queue>;
+  extern template class CachingAllocator<alpaka_common::DevHost, alpaka_cuda_async::Queue>;
+#endif
+#ifdef ALPAKA_ACC_GPU_HIP_ENABLED
+  extern template class CachingAllocator<alpaka_rocm_async::Device, alpaka_rocm_async::Queue>;
+  extern template class CachingAllocator<alpaka_common::DevHost, alpaka_rocm_async::Queue>;
+#endif
+#ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_ENABLED
+  extern template class CachingAllocator<alpaka_serial_sync::Device, alpaka_serial_sync::Queue>;
+  extern template class CachingAllocator<alpaka_common::DevHost, alpaka_serial_sync::Queue>;
+#endif
+#ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_ENABLED
+  extern template class CachingAllocator<alpaka_tbb_async::Device, alpaka_tbb_async::Queue>;
+  extern template class CachingAllocator<alpaka_common::DevHost, alpaka_tbb_async::Queue>;
+#endif
 
 }  // namespace cms::alpakatools
 
