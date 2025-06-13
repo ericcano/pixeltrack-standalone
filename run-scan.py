@@ -29,7 +29,7 @@ n_blocks_per_stream = {
 # 30 ev/s * 8 hours should the sufficent and fit into signed int for ~2k threads
 background_events_per_thread = 30*3600*8
 
-result_re = re.compile("Processed (?P<events>\d+) events in (?P<time>\S+) seconds, throughput (?P<throughput>\S+) events/s, CPU usage per thread: (?P<cpueff>\d+(.\d+)?)%")
+result_re = re.compile(r"Processed (?P<events>\d+) events in (?P<time>\S+) seconds, throughput (?P<throughput>\S+) events/s, CPU usage per thread: (?P<cpueff>\d+(.\d+)?)%")
 
 Measurement = collections.namedtuple("Measurement", ["events", "time", "throughput", "cpueff"])
 GPU = collections.namedtuple("GPU", ["id", "name", "driver_version"])

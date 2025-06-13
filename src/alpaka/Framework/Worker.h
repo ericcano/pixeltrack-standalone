@@ -21,6 +21,7 @@ namespace {
   struct D_dw { static constexpr const char name[] = "Worker::doneWaiting"; };
   struct D_dp { static constexpr const char name[] = "Worker::doProduce"; };
   struct D_da { static constexpr const char name[] = "Worker::doAcquire"; };
+  struct D_pa { static constexpr const char name[] = "Worker::prefetchAsync"; };
 }
 
 namespace edm {
@@ -136,7 +137,7 @@ namespace edm {
             }
           });
         }
-        //std::cout << "calling prefetchAsync " << this << " with moduleTask " << moduleTask << std::endl;
+        nvtx3::scoped_range_in<D_pa> sri{this->type(), nvtx3::rgb{r,g,b}, nvtx3::payload{event.eventID()}};
         prefetchAsync(event, eventSetup, WaitingTaskHolder(*group, moduleTask));
       }
     }
