@@ -6,8 +6,8 @@ EMPTY:=
 SPACE:= $(EMPTY) $(EMPTY)
 
 # Compiler
-export CC  := gcc-14
-export CXX := g++-14
+export CC  := gcc
+export CXX := g++
 CXX_MAJOR:=$(shell $(CXX) -dM -E -x c++ - < /dev/null | awk '/__GNUC__/ { print $$3; }')
 CXX_MINOR:=$(shell $(CXX) -dM -E -x c++ - < /dev/null | awk '/__GNUC_MINOR__/ { print $$3; }')
 CXX_VERSION:=$(shell echo $$(( $(CXX_MAJOR) * 100 + $(CXX_MINOR) )) )
@@ -28,7 +28,7 @@ $(warning GCC 10.3 is known to have issues compiled CUDA code, please consider u
 endif
 
 # Build flags
-USER_CXXFLAGS := -isystem /usr/include/c++/14
+USER_CXXFLAGS := -isystem /opt/rh/gcc-toolset-14/root/usr/include/c++/14/
 HOST_CXXFLAGS := -O2 -fPIC -fdiagnostics-show-option -felide-constructors -fmessage-length=0 -fno-math-errno -ftree-vectorize -fvisibility-inlines-hidden --param vect-max-version-for-alias-checks=50 -msse3 -pipe -pthread -Werror=address -Wall -Werror=array-bounds -Wno-attributes -Werror=conversion-null -Werror=delete-non-virtual-dtor -Wno-deprecated -Werror=format-contains-nul -Werror=format -Wno-long-long -Werror=main -Werror=missing-braces -Werror=narrowing -Wno-non-template-friend -Wnon-virtual-dtor -Werror=overflow -Werror=overlength-strings -Wparentheses -Werror=pointer-arith -Wno-psabi -Werror=reorder -Werror=return-local-addr -Wreturn-type -Werror=return-type -Werror=sign-compare -Werror=strict-aliasing -Wstrict-overflow -Werror=switch -Werror=type-limits -Wunused -Werror=unused-but-set-variable -Wno-unused-local-typedefs -Werror=unused-value -Wno-error=unused-variable -Wno-vla -Werror=write-strings -Wfatal-errors
 # in case os linker resolve errors, try adding -mcmodel=large
 
