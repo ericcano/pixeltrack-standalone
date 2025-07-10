@@ -6,8 +6,8 @@ EMPTY:=
 SPACE:= $(EMPTY) $(EMPTY)
 
 # Compiler
-export CC  := gcc
-export CXX := g++
+export CC  := gcc-14
+export CXX := g++-14
 CXX_MAJOR:=$(shell $(CXX) -dM -E -x c++ - < /dev/null | awk '/__GNUC__/ { print $$3; }')
 CXX_MINOR:=$(shell $(CXX) -dM -E -x c++ - < /dev/null | awk '/__GNUC_MINOR__/ { print $$3; }')
 CXX_VERSION:=$(shell echo $$(( $(CXX_MAJOR) * 100 + $(CXX_MINOR) )) )
@@ -73,7 +73,7 @@ CUDA_LIBDIR := $(CUDA_BASE)/lib64
 USER_CUDAFLAGS :=
 export CUDA_BASE
 export CUDA_DEPS := $(CUDA_LIBDIR)/libcudart.so
-export CUDA_ARCH := 50 60 70
+export CUDA_ARCH := 120
 export CUDA_CXXFLAGS := -I$(CUDA_BASE)/include
 export CUDA_TEST_CXXFLAGS := -DGPU_DEBUG
 export CUDA_LDFLAGS := -L$(CUDA_LIBDIR) -lcudart -lcudadevrt
@@ -711,7 +711,7 @@ external_tbb: $(TBB_LIB)
 # Let TBB Makefile to define its own CXXFLAGS
 ifndef SYCL_USE_INTEL_ONEAPI
 $(TBB_LIB): $(HWLOC_BASE)
-$(TBB_LIB): CXXFLAGS:=
+$(TBB_LIB): CXXFLAGS:= --include cstdlib -Wno-error=array-bounds
 $(TBB_LIB):
 	$(eval TBB_TMP := $(shell mktemp -d))
 	$(eval TBB_TMP_SRC := $(TBB_TMP)/src)
